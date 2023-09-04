@@ -27,9 +27,10 @@ contract TomoBaseFactory {
 
     mapping(address => UserVault) private _userVaults;
 
-    constructor(address stakeContractAddress, address zUSDAddress) {
+    constructor(address stakeContractAddress, address zUSDAddress, address priceFeeder) {
         STAKE_CONTRACT_ADDRESS = stakeContractAddress;
         ZUSD_ADDRESS = zUSDAddress;
+        _priceFeed = priceFeeder;
     }
 
     function _heathFactor(address user) internal view returns(uint256) {
