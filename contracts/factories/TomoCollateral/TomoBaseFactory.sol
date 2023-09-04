@@ -103,7 +103,7 @@ contract TomoBaseFactory {
         require(success, "TomoBaseFactory: Transfer fail");
     }
 
-    function liquilidate(address user, uint256 payAmount) external {
+    function liquidate(address user, uint256 payAmount) external {
         require(_heathFactor(user) <= 1, "ZUSD: Still safe");
 
         UserVault storage userVault = _userVaults[user];
