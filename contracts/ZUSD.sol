@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.7.0;
+pragma solidity =0.8.0;
 
 import "./interfaces/IZUSD.sol";
 
@@ -30,7 +30,7 @@ contract ZUSD is TRC25, IZUSD {
         TOMOZ_ISSUER = address(0);
     }
 
-    function _estimateFee(uint256) internal view override returns (uint256) {
+    function _estimateFee(uint256) internal pure override returns (uint256) {
         // check with tomoz issuer, otherwise the fee for transfer will be 0.1 USDZ
         return (1 ether / 10);
     }
@@ -38,8 +38,8 @@ contract ZUSD is TRC25, IZUSD {
     /**
      * @notice return the day
      */
-    function _getDay() internal pure returns (uint256) {
-        returns (block.timestamp % 1 days);
+    function _getDay() internal view returns (uint256) {
+        return (block.timestamp % 1 days);
     }
 
     /**
@@ -48,7 +48,7 @@ contract ZUSD is TRC25, IZUSD {
      * @param amount amount to mint
      */
     function mint(address receiver, uint256 amount) external override {
-        Factory memory factory = _factories[msg.sender];
+        Factory storage factory = _factories[msg.sender];
         require(factory.isActive, "ZUSD: Caller is not minter");
 
         uint256 day = _getDay();
@@ -59,7 +59,7 @@ contract ZUSD is TRC25, IZUSD {
 
         factory.mintPerDays[day] += amount;
 
-        emit MintFromFactory(msg.sender, receive, amount);
+        emit MintFromFactory(msg.sender, receiver, amount);
     }
 
     /**
@@ -68,7 +68,7 @@ contract ZUSD is TRC25, IZUSD {
      * @param amount amount to burn
      */
     function burn(address from, uint256 amount) external override {
-        Factory memory factory = _factories[msg.sender];
+        Factory storage factory = _factories[msg.sender];
         require(factory.isActive, "ZUSD: Caller is not burner");
 
         uint256 day = _getDay();
