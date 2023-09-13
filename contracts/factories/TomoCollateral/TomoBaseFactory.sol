@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.7.0;
+pragma solidity =0.8.0;
 
 import "../../interfaces/IPriceFeeder.sol";
 import "../../interfaces/IZUSD.sol";
@@ -27,9 +27,10 @@ contract TomoBaseFactory {
 
     mapping(address => UserVault) private _userVaults;
 
-    constructor(address stakeContractAddress, address zUSDAddress) {
+    constructor(address stakeContractAddress, address zUSDAddress, address priceFeeder) {
         STAKE_CONTRACT_ADDRESS = stakeContractAddress;
         ZUSD_ADDRESS = zUSDAddress;
+        _priceFeed = priceFeeder;
     }
 
     function _heathFactor(address user) internal view returns(uint256) {
@@ -39,7 +40,7 @@ contract TomoBaseFactory {
         uint256 amountDepositInUSD = userVault.amountDeposited * price / decimals;
 
         if (userVault.amountMinted == 0) {
-            return uint256(-1);
+            return 2**256 - 1;
         }
 
         return (amountDepositInUSD * LIQUIDATION_THRESHOLD) / (userVault.amountMinted * 10000);
@@ -79,7 +80,7 @@ contract TomoBaseFactory {
     }
 
     function burn(uint256 amount) external {
-        require(amount > 0; "ZUSD: Invalid amount");
+        require(amount > 0, "ZUSD: Invalid amount");
 
         UserVault storage userVault = _userVaults[msg.sender];
         userVault.amountMinted -= amount;
@@ -88,7 +89,7 @@ contract TomoBaseFactory {
     }
 
     function withdraw(uint256 amount) external {
-        require(amount > 0; "ZUSD: Invalid amount");
+        require(amount > 0, "ZUSD: Invalid amount");
 
         UserVault storage userVault = _userVaults[msg.sender];
         userVault.amountDeposited -= amount;
@@ -99,7 +100,7 @@ contract TomoBaseFactory {
 
         // TODO: withdraw TOMO from staking contract
 
-        (bool success, bytes memory) = address(msg.sender).call{value: amount}();
+        (bool success,) = address(msg.sender).call{value: amount}("");
         require(success, "TomoBaseFactory: Transfer fail");
     }
 
@@ -107,7 +108,7 @@ contract TomoBaseFactory {
         require(_heathFactor(user) <= 1, "ZUSD: Still safe");
 
         UserVault storage userVault = _userVaults[user];
-        require(amount <= userVault.amountMinted, "ZUSD: Invalid amount");
+        require(payAmount <= userVault.amountMinted, "ZUSD: Invalid amount");
 
         IZUSD(ZUSD_ADDRESS).burn(msg.sender, payAmount);
 
@@ -115,7 +116,7 @@ contract TomoBaseFactory {
         userVault.amountDeposited -= returnAmount;
         userVault.amountDeposited -= payAmount;
 
-        (bool success, bytes memory) = address(msg.sender).call{value: returnAmount}();
+        (bool success,) = address(msg.sender).call{value: returnAmount}("");
         require(success, "TomoBaseFactory: Transfer fail");
     }
 }
