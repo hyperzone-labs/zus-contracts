@@ -13,8 +13,25 @@ contract UIP is TRC25, IUIP {
     // for free gas features
     address immutable private TOMOZ_ISSUER;
 
+    uint256 private _totalStaked;
+
+    /// We do some magical math
+    struct MagicInterestModalState {
+        uint256 interestRateBase;
+        uint256 totalStaked;
+        uint256 lastUpdateTimestamp;
+    }
+
     struct Factory {
         bool isActive;
+        uint256 totalMinted;
+        uint256 totalStaked;
+        
+        // for calculate interest amount
+        uint256 accumulateInterestAmountPerMinted;
+        uint256 interestAmountDept;
+        uint256 lastUpdateTimestamp;
+
         uint256 limitMintAmountPerDay;
         uint256 limitBurnAmountPerDay;
         mapping(uint256 => uint256) mintPerDays;
@@ -33,6 +50,10 @@ contract UIP is TRC25, IUIP {
     function _estimateFee(uint256) internal pure override returns (uint256) {
         // check with tomoz issuer, otherwise the fee for transfer will be 0.1 USDZ
         return (1 ether / 10);
+    }
+
+    function _calculateDept(address factory, uint256 mintAmount) internal pure returns (uint256) {
+
     }
 
     /**
