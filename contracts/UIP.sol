@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.0;
 
-import "./interfaces/IZUSD.sol";
+import "./interfaces/IUIP.sol";
 
 import "./libraries/TRC25.sol";
 
 /**
- * @title ZUSD
- * @notice ZUSD is decentralized stablecoin
+ * @title UIP
+ * @notice UIP is decentralized stablecoin
  */
-contract ZUSD is TRC25, IZUSD {
+contract UIP is TRC25, IUIP {
     // for free gas features
     address immutable private TOMOZ_ISSUER;
 
@@ -43,17 +43,17 @@ contract ZUSD is TRC25, IZUSD {
     }
 
     /**
-     * @notice Mint ZUSD by factory
+     * @notice Mint UIP by factory
      * @param receiver receiver address
      * @param amount amount to mint
      */
     function mint(address receiver, uint256 amount) external override {
         Factory storage factory = _factories[msg.sender];
-        require(factory.isActive, "ZUSD: Caller is not minter");
+        require(factory.isActive, "UIP: Caller is not minter");
 
         uint256 day = _getDay();
         uint256 todayMinted = factory.mintPerDays[day];
-        require(factory.limitMintAmountPerDay == 0 || todayMinted + amount <= factory.limitMintAmountPerDay, "ZUSD: reach limitation mint per days");
+        require(factory.limitMintAmountPerDay == 0 || todayMinted + amount <= factory.limitMintAmountPerDay, "UIP: reach limitation mint per days");
 
         _mint(receiver, amount);
 
@@ -63,17 +63,17 @@ contract ZUSD is TRC25, IZUSD {
     }
 
     /**
-     * @notice burn ZUSD by factory
+     * @notice burn UIP by factory
      * @param from burn from address
      * @param amount amount to burn
      */
     function burn(address from, uint256 amount) external override {
         Factory storage factory = _factories[msg.sender];
-        require(factory.isActive, "ZUSD: Caller is not burner");
+        require(factory.isActive, "UIP: Caller is not burner");
 
         uint256 day = _getDay();
         uint256 todayBurned = factory.burnPerDays[day];
-        require(factory.limitBurnAmountPerDay == 0 || todayBurned + amount <= factory.limitBurnAmountPerDay, "ZUSD: reach limitation burn per days");
+        require(factory.limitBurnAmountPerDay == 0 || todayBurned + amount <= factory.limitBurnAmountPerDay, "UIP: reach limitation burn per days");
 
         _burn(from, amount);
 
@@ -90,7 +90,7 @@ contract ZUSD is TRC25, IZUSD {
      */
     function addFactory(address factoryAddress, uint256 limitMintPerDay, uint256 limitBurnPerDay) external onlyOwner {
         Factory storage factory = _factories[factoryAddress];
-        require(!factory.isActive, "ZUSD: Actively factory");
+        require(!factory.isActive, "UIP: Actively factory");
 
         factory.isActive = true;
         factory.limitMintAmountPerDay = limitMintPerDay;
@@ -103,7 +103,7 @@ contract ZUSD is TRC25, IZUSD {
      */
     function removeFactory(address factoryAddress) external onlyOwner {
         Factory storage factory = _factories[factoryAddress];
-        require(factory.isActive, "ZUSD: Not active factory");
+        require(factory.isActive, "UIP: Not active factory");
 
         delete _factories[factoryAddress];
     }
@@ -116,7 +116,7 @@ contract ZUSD is TRC25, IZUSD {
      */
     function setFactory(address factoryAddress, uint256 limitMintPerDay, uint256 limitBurnPerDay) external onlyOwner {
         Factory storage factory = _factories[factoryAddress];
-        require(factory.isActive, "ZUSD: Not active factory");
+        require(factory.isActive, "UIP: Not active factory");
 
         factory.limitMintAmountPerDay = limitMintPerDay;
         factory.limitBurnAmountPerDay = limitBurnPerDay;
