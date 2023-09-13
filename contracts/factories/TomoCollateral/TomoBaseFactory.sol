@@ -2,15 +2,15 @@
 pragma solidity =0.8.0;
 
 import "../../interfaces/IPriceFeeder.sol";
-import "../../interfaces/IZUSD.sol";
+import "../../interfaces/IUIP.sol";
 
 /**
  * @title TomoBaseFactory
- * @notice Tomo base factory is TOMO base collateral vault to mint zUSD
+ * @notice Tomo base factory is TOMO base collateral vault to mint UIP
  */
 contract TomoBaseFactory {
     address immutable public STAKE_CONTRACT_ADDRESS;
-    address immutable public ZUSD_ADDRESS;
+    address immutable public UIP_ADDRESS;
 
     uint256 immutable public LIMIT_BORROW = 7000;
     uint256 immutable public RESERVE_PERCENT = 3000;
@@ -27,9 +27,9 @@ contract TomoBaseFactory {
 
     mapping(address => UserVault) private _userVaults;
 
-    constructor(address stakeContractAddress, address zUSDAddress, address priceFeeder) {
+    constructor(address stakeContractAddress, address uipAddress, address priceFeeder) {
         STAKE_CONTRACT_ADDRESS = stakeContractAddress;
-        ZUSD_ADDRESS = zUSDAddress;
+        UIP_ADDRESS = uipAddress;
         _priceFeed = priceFeeder;
     }
 
@@ -69,32 +69,32 @@ contract TomoBaseFactory {
     }
 
     function mint(uint256 amount) external {
-        require(amount > 0 && amount < _maximunMintAmount(msg.sender), "ZUSD: Invalid amount");
+        require(amount > 0 && amount < _maximunMintAmount(msg.sender), "UIP: Invalid amount");
 
         UserVault storage userVault = _userVaults[msg.sender];
         userVault.amountMinted += amount;
 
-        require(_heathFactor(msg.sender) > 1, "ZUSD: reach liquidation");
+        require(_heathFactor(msg.sender) > 1, "UIP: reach liquidation");
 
-        IZUSD(ZUSD_ADDRESS).mint(msg.sender, amount);
+        IUIP(UIP_ADDRESS).mint(msg.sender, amount);
     }
 
     function burn(uint256 amount) external {
-        require(amount > 0, "ZUSD: Invalid amount");
+        require(amount > 0, "UIP: Invalid amount");
 
         UserVault storage userVault = _userVaults[msg.sender];
         userVault.amountMinted -= amount;
 
-        IZUSD(ZUSD_ADDRESS).burn(msg.sender, amount);
+        IUIP(UIP_ADDRESS).burn(msg.sender, amount);
     }
 
     function withdraw(uint256 amount) external {
-        require(amount > 0, "ZUSD: Invalid amount");
+        require(amount > 0, "UIP: Invalid amount");
 
         UserVault storage userVault = _userVaults[msg.sender];
         userVault.amountDeposited -= amount;
 
-        require(_heathFactor(msg.sender) > 1, "ZUSD: Reach liquidation");
+        require(_heathFactor(msg.sender) > 1, "UIP: Reach liquidation");
 
         _totalDeposited -= amount;
 
@@ -105,12 +105,12 @@ contract TomoBaseFactory {
     }
 
     function liquidate(address user, uint256 payAmount) external {
-        require(_heathFactor(user) <= 1, "ZUSD: Still safe");
+        require(_heathFactor(user) <= 1, "UIP: Still safe");
 
         UserVault storage userVault = _userVaults[user];
-        require(payAmount <= userVault.amountMinted, "ZUSD: Invalid amount");
+        require(payAmount <= userVault.amountMinted, "UIP: Invalid amount");
 
-        IZUSD(ZUSD_ADDRESS).burn(msg.sender, payAmount);
+        IUIP(UIP_ADDRESS).burn(msg.sender, payAmount);
 
         uint256 returnAmount = payAmount * userVault.amountDeposited / userVault.amountMinted;
         userVault.amountDeposited -= returnAmount;
