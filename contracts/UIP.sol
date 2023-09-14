@@ -15,25 +15,22 @@ contract UIP is TRC25, IUIP {
 
     uint256 private _totalStaked;
 
-    /// We do some magical math
-    struct MagicInterestModalState {
-        uint256 interestRateBase;
-        uint256 totalStaked;
-        uint256 lastUpdateTimestamp;
+    struct UserState {
+        uint256 borrowAmount;
+        uint256 previousIndex;
     }
 
     struct Factory {
         bool isActive;
         uint256 totalMinted;
         uint256 totalStaked;
-        
-        // for calculate interest amount
-        uint256 accumulateInterestAmountPerMinted;
-        uint256 interestAmountDept;
+
+        uint256 currentIndex;
         uint256 lastUpdateTimestamp;
 
         uint256 limitMintAmountPerDay;
         uint256 limitBurnAmountPerDay;
+
         mapping(uint256 => uint256) mintPerDays;
         mapping(uint256 => uint256) burnPerDays;
     }
@@ -42,6 +39,7 @@ contract UIP is TRC25, IUIP {
     event BurnFromFactory(address factory, address from, uint256 amount);
     
     mapping(address => Factory) private _factories;
+    mapping(address => mapping(address => UserState)) private _userStates;
 
     constructor(string memory name, string memory symbol, uint8 decimals) TRC25(name, symbol, decimals) {
         TOMOZ_ISSUER = address(0);
@@ -52,8 +50,8 @@ contract UIP is TRC25, IUIP {
         return (1 ether / 10);
     }
 
-    function _calculateDept(address factory, uint256 mintAmount) internal pure returns (uint256) {
-
+    function _calculateDept(address factoryAddress, uint256 mintAmount) internal view returns (uint256) {
+        Factory storage factory = _factories[factoryAddress];
     }
 
     /**
