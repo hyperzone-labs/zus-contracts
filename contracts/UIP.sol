@@ -13,6 +13,8 @@ contract UIP is TRC25, IUIP {
     // for free gas features
     address immutable private TOMOZ_ISSUER;
 
+    // decimals 10
+    uint256 private _baseRate;
     uint256 private _totalStaked;
 
     struct UserState {
@@ -20,7 +22,7 @@ contract UIP is TRC25, IUIP {
         uint256 previousIndex;
     }
 
-    struct Factory {
+    struct FactoryState {
         bool isActive;
         uint256 totalMinted;
         uint256 totalStaked;
@@ -35,14 +37,20 @@ contract UIP is TRC25, IUIP {
         mapping(uint256 => uint256) burnPerDays;
     }
 
+    event UpdateFactory(address factory, uint256 newIndex);
     event MintFromFactory(address factory, address receiver, uint256 amount);
     event BurnFromFactory(address factory, address from, uint256 amount);
     
-    mapping(address => Factory) private _factories;
+    mapping(address => FactoryState) private _factoryStates;
     mapping(address => mapping(address => UserState)) private _userStates;
 
     constructor(string memory name, string memory symbol, uint8 decimals) TRC25(name, symbol, decimals) {
         TOMOZ_ISSUER = address(0);
+    }
+
+    modifier onlyActiveFactory() {
+        require(_factoryStates[msg.sender].isActive, "ZUSD: Caller is not actively factory");
+        _;
     }
 
     function _estimateFee(uint256) internal pure override returns (uint256) {
@@ -50,8 +58,26 @@ contract UIP is TRC25, IUIP {
         return (1 ether / 10);
     }
 
-    function _calculateDept(address factoryAddress, uint256 mintAmount) internal view returns (uint256) {
-        Factory storage factory = _factories[factoryAddress];
+    function _getCurrentInterestRateOfFactory(address /* factory */) internal view returns (uint256) {
+        return _baseRate;
+    }
+
+    /**
+     * @notice We do some magic math
+     * 
+     */
+    function _calculateCurrentIndex(address factory) internal view returns (uint256) {
+        FactoryState storage factoryState = _factoryStates[factory];
+        uint256 currentRate = _getCurrentInterestRateOfFactory(factory);
+
+        return (factoryState.currentIndex * (1 + currentRate * ((block.timestamp - factoryState.lastUpdateTimestamp) / 365 days)));
+    }
+
+    function _calculateDept(address factory, address user) internal view returns (uint256) {
+        UserState memory userState = _userStates[factory][user];
+        uint256 currentIndex = _calculateCurrentIndex(factory);
+
+        return userState.borrowAmount * (currentIndex / userState.previousIndex);
     }
 
     /**
@@ -61,14 +87,23 @@ contract UIP is TRC25, IUIP {
         return (block.timestamp % 1 days);
     }
 
+    function updateFactory(address factory) public {
+        FactoryState storage factoryState = _factoryStates[factory];
+        uint256 newIndex = _calculateCurrentIndex(factory);
+        factoryState.currentIndex = newIndex;
+
+        emit UpdateFactory(factory, newIndex);
+    }
+
     /**
      * @notice Mint UIP by factory
      * @param receiver receiver address
      * @param amount amount to mint
      */
-    function mint(address receiver, uint256 amount) external override {
-        Factory storage factory = _factories[msg.sender];
-        require(factory.isActive, "UIP: Caller is not minter");
+    function mint(address receiver, uint256 amount) external onlyActiveFactory override {
+        updateFactory(msg.sender);
+        
+        FactoryState storage factory = _factoryStates[msg.sender];
 
         uint256 day = _getDay();
         uint256 todayMinted = factory.mintPerDays[day];
@@ -86,9 +121,10 @@ contract UIP is TRC25, IUIP {
      * @param from burn from address
      * @param amount amount to burn
      */
-    function burn(address from, uint256 amount) external override {
-        Factory storage factory = _factories[msg.sender];
-        require(factory.isActive, "UIP: Caller is not burner");
+    function burn(address from, uint256 amount) external onlyActiveFactory override {
+        updateFactory(msg.sender);
+
+        FactoryState storage factory = _factoryStates[msg.sender];
 
         uint256 day = _getDay();
         uint256 todayBurned = factory.burnPerDays[day];
@@ -108,7 +144,7 @@ contract UIP is TRC25, IUIP {
      * @param limitBurnPerDay limit burn amount per day
      */
     function addFactory(address factoryAddress, uint256 limitMintPerDay, uint256 limitBurnPerDay) external onlyOwner {
-        Factory storage factory = _factories[factoryAddress];
+        FactoryState storage factory = _factoryStates[factoryAddress];
         require(!factory.isActive, "UIP: Actively factory");
 
         factory.isActive = true;
@@ -121,10 +157,10 @@ contract UIP is TRC25, IUIP {
      * @param factoryAddress address of factory
      */
     function removeFactory(address factoryAddress) external onlyOwner {
-        Factory storage factory = _factories[factoryAddress];
+        FactoryState storage factory = _factoryStates[factoryAddress];
         require(factory.isActive, "UIP: Not active factory");
 
-        delete _factories[factoryAddress];
+        delete _factoryStates[factoryAddress];
     }
 
     /**
@@ -134,7 +170,7 @@ contract UIP is TRC25, IUIP {
      * @param limitBurnPerDay limit burn amount per day
      */
     function setFactory(address factoryAddress, uint256 limitMintPerDay, uint256 limitBurnPerDay) external onlyOwner {
-        Factory storage factory = _factories[factoryAddress];
+        FactoryState storage factory = _factoryStates[factoryAddress];
         require(factory.isActive, "UIP: Not active factory");
 
         factory.limitMintAmountPerDay = limitMintPerDay;
