@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IPriceFeeder.sol";
@@ -16,7 +16,7 @@ contract PriceFeeder is Ownable, IPriceFeeder {
         _price = price;
     }
 
-    function getPrice() external view override returns(uint256, uint8) {
+    function getPrice() external view override returns (uint256, uint8) {
         return (_price, _decimals);
     }
 }

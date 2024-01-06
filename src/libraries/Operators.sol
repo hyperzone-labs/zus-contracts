@@ -8,6 +8,7 @@ abstract contract Operator {
 
     modifier onlyOperator() {
         require(isOperator(msg.sender), "Operator: Caller is not operator");
+        _;
     }
 
     function _setOperator(address operator, bool isActive) internal {
@@ -16,7 +17,7 @@ abstract contract Operator {
         emit SetOperatorStatus(operator, isActive);
     }
 
-    function isOperator(address user) public view returns(bool) {
+    function isOperator(address user) public view returns (bool) {
         return _operators[user];
     }
 
