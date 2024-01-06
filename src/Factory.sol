@@ -9,12 +9,14 @@ import "./interfaces/IFactoryCallback.sol";
 import "./interfaces/IMintBurnERC20.sol";
 import "./interfaces/IVaultManagerCallback.sol";
 
+import "./libraries/Operators.sol";
+
 /**
  * @title Factory contract
- * @author Terry
+ * @author @imterryyy
  * @dev Factory
  */
-contract Factory is IFactory, Ownable {
+contract Factory is IFactory, Ownable, Operator {
     using SafeERC20 for IMintBurnERC20;
 
     IMintBurnERC20 public immutable ZIP_TOKEN;
@@ -23,7 +25,7 @@ contract Factory is IFactory, Ownable {
     Mode private _mode;
     address private _vaultManager;
     address private _inflationRateFeeder;
-    uint256 private _startAntiInflationModeTimestamp;
+    uint256 private _lastAccumulateTimestamp;
 
     // We do some awesome math
     int256 private _accumulateInflationRate;
@@ -46,7 +48,18 @@ contract Factory is IFactory, Ownable {
         _;
     }
 
-    function accumulateInflation() external {}
+    function setOperator(address operator, bool isActive) external override onlyOwner {
+        _setOperator(operator, isActive);
+    }
+
+    /**
+     * @dev Accumulate inflation
+     */
+    function accumulateInflation() external onlyOperator {
+        require(_mode == Mode.ANTI_INFLATION_MODE, "Factory: Only anti inflation mode");
+
+        _lastAccumulateTimestamp = block.timestamp;
+    }
 
     /**
      * @dev Migrate mode fromm deposit mode -> anti inflation mode
@@ -79,7 +92,6 @@ contract Factory is IFactory, Ownable {
             zusAmount = amountStablecoin;
         } else if (_mode == Mode.ANTI_INFLATION_MODE) {
             // TODO: Anti inflation handler
-
         } else {
             revert();
         }

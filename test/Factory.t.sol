@@ -5,6 +5,5 @@ import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 contract FactorTest is Test {
-    function test_Foo() public {
-    }
+    function test_Foo() public {}
 }
