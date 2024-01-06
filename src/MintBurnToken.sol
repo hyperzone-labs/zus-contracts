@@ -17,7 +17,7 @@ contract MintBurnToken is IMintBurnERC20, ERC20, Ownable {
 
     mapping(address => bool) private _activeFactories;
 
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) Ownable(msg.sender) {}
 
     modifier onlyFromFactory() {
         require(_activeFactories[msg.sender], "Caller is not factory");

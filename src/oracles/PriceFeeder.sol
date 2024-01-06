@@ -8,7 +8,7 @@ contract PriceFeeder is Ownable, IPriceFeeder {
     uint256 _price;
     uint8 _decimals;
 
-    constructor() {
+    constructor() Ownable(msg.sender) {
         _decimals = 8;
     }
 

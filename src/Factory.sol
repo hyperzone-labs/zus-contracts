@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -37,6 +37,7 @@ contract Factory is IFactory, Ownable {
 
         _mode = Mode.DEPOSIT_MODE;
         _vaultManager = vaultManager;
+        _inflationRateFeeder = inflationRateFeeder;
     }
 
     modifier validBackedStablecoin(address stablecoin) {
@@ -89,13 +90,13 @@ contract Factory is IFactory, Ownable {
     /**
      * @dev Redeem ZUS token
      */
-    function redeem(address stablecoin, uint256 amountZUS)
-        external
-        validBackedStablecoin(stablecoin)
-        returns (uint256 zipAmount)
-    {
-        if (_mode == Mode.DEPOSIT_MODE) {}
-    }
+    // function redeem(address stablecoin, uint256 amountZUS)
+    //     external
+    //     validBackedStablecoin(stablecoin)
+    //     returns (uint256 zipAmount)
+    // {
+    //     if (_mode == Mode.DEPOSIT_MODE) {}
+    // }
 
     /**
      * @dev Get current mode
