@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IFactoryCallback.sol";
 import "./interfaces/IMintBurnERC20.sol";
+import "./interfaces/IVaultManagerCallback.sol";
 
 /**
  * @title Factory contract
@@ -70,12 +71,15 @@ contract Factory is IFactory, Ownable {
             zusAmount = amountStablecoin;
 
             ZIP_TOKEN.safeTransferFrom(msg.sender, _vaultManager, amountStablecoin);
+            // call to vault manager
+            IVaultManagerCallback(_vaultManager).receiveMoney(stablecoin, amountStablecoin);
             ZUS_TOKEN.mint(receiver, zusAmount);
 
             zipAmount = 0;
             zusAmount = amountStablecoin;
         } else if (_mode == Mode.ANTI_INFLATION_MODE) {
             // TODO: Anti inflation handler
+
         } else {
             revert();
         }
