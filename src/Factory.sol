@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IFactoryCallback.sol";
 import "./interfaces/IMintBurnERC20.sol";
-import "./interfaces/IVaultManagerCallback.sol";
+import "./interfaces/IVaultManager.sol";
 
 import "./libraries/Operators.sol";
 
@@ -28,7 +28,7 @@ contract Factory is IFactory, Ownable, Operator {
     uint256 private _lastAccumulateTimestamp;
 
     // We do some awesome math
-    int256 private _accumulateInflationRate;
+    int256 private _accumulateInflationRate; // 1e18 in decimals
 
     mapping(address => bool) private _backedStablecoin;
 
@@ -46,6 +46,10 @@ contract Factory is IFactory, Ownable, Operator {
     modifier validBackedStablecoin(address stablecoin) {
         require(_backedStablecoin[stablecoin], "Invalid stablecoin");
         _;
+    }
+
+    function _convertStablecoinToZIP(uint256 amountStablecoin) internal view returns(uint256) {
+        return 1;
     }
 
     function setOperator(address operator, bool isActive) external override onlyOwner {
@@ -74,45 +78,61 @@ contract Factory is IFactory, Ownable, Operator {
     /**
      * @dev Mint new ZUS token
      */
-    function mint(address stablecoin, uint256 amountStablecoin, address receiver, bytes memory data)
+    function mint(address stablecoin, uint256 stablecoinAmount, address receiver, bytes memory data)
         external
         validBackedStablecoin(stablecoin)
         returns (uint256 zipAmount, uint256 zusAmount)
     {
+        zusAmount = stablecoinAmount;
+
+        // take stablecoin from sender
+        ZIP_TOKEN.safeTransfer(_vaultManager, stablecoinAmount);
+        // call to vault manager
+        IVaultManager(_vaultManager).receiveMoney(stablecoin, stablecoinAmount);
+
         if (_mode == Mode.DEPOSIT_MODE) {
-            // convert ZUS 1-1 with stablecoin
-            zusAmount = amountStablecoin;
-
-            ZIP_TOKEN.safeTransferFrom(msg.sender, _vaultManager, amountStablecoin);
-            // call to vault manager
-            IVaultManagerCallback(_vaultManager).receiveMoney(stablecoin, amountStablecoin);
-            ZUS_TOKEN.mint(receiver, zusAmount);
-
             zipAmount = 0;
-            zusAmount = amountStablecoin;
         } else if (_mode == Mode.ANTI_INFLATION_MODE) {
-            // TODO: Anti inflation handler
+            zipAmount = _convertStablecoinToZIP((uint256(_accumulateInflationRate) - 1e18) * stablecoinAmount / 1e18);
         } else {
             revert();
         }
 
+        ZUS_TOKEN.mint(receiver, zusAmount);
+
         if (data.length > 0) {
             bytes4 magicValue =
-                IFactoryCallback(receiver).mintCallback(stablecoin, amountStablecoin, zipAmount, zusAmount, data);
+                IFactoryCallback(receiver).mintCallback(stablecoin, stablecoinAmount, zipAmount, zusAmount, data);
             require(magicValue == IFactoryCallback.mintCallback.selector, "Invalid magic value");
+        }
+
+        if (zipAmount > 0) {
+            ZIP_TOKEN.burn(address(this), zipAmount);
         }
     }
 
     /**
      * @dev Redeem ZUS token
      */
-    // function redeem(address stablecoin, uint256 amountZUS)
-    //     external
-    //     validBackedStablecoin(stablecoin)
-    //     returns (uint256 zipAmount)
-    // {
-    //     if (_mode == Mode.DEPOSIT_MODE) {}
-    // }
+    function redeem(address stablecoin, address receiver, uint256 zusAmount)
+        external
+        validBackedStablecoin(stablecoin)
+        returns (uint256 zipAmount, uint256 stablecoinAmount)
+    {
+        stablecoinAmount = zusAmount;
+        // call to vault manager
+        IVaultManager(_vaultManager).withdrawMoney(stablecoin, receiver, stablecoinAmount);
+
+        if (_mode == Mode.DEPOSIT_MODE) {
+            zipAmount = 0;
+        } else {
+            zipAmount = _convertStablecoinToZIP((uint256(_accumulateInflationRate) - 1e18) * stablecoinAmount / 1e18);
+        }
+
+        // TODO: callback to receiver
+        // TODO: Burn ZUS
+        // TODO: Mint ZIP
+    }
 
     /**
      * @dev Get current mode
