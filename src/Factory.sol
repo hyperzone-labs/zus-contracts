@@ -25,6 +25,7 @@ contract Factory is IFactory, Ownable, Operator {
     IMintBurnERC20 public immutable ZUS_TOKEN;
 
     uint8 private constant PRICE_CONFIG_DECIMALS = 18; // for convert price
+    uint256 private constant ONE_YEAR_TIMESTAMP = 31536000; // 1 year in timestamp
 
     Mode private _mode;
     address private _vaultManager;
@@ -32,7 +33,7 @@ contract Factory is IFactory, Ownable, Operator {
     uint256 private _lastAccumulateTimestamp;
 
     // We do some awesome math
-    int256 private _accumulateInflationRate; // 1e18 in decimals
+    uint256 private _accumulateInflationRate; // 1e18 in decimals
 
     mapping(address => bool) private _backedStablecoin;
     mapping(address => address) private _oraclesZIPOnStablecoin;
@@ -53,6 +54,9 @@ contract Factory is IFactory, Ownable, Operator {
         _;
     }
 
+    /**
+     * @dev Convert fiat to ZIP
+     */
     function _convertStablecoinToZIP(address stablecoin, uint256 amountStablecoin) internal view returns(uint256) {
         (uint256 tokenPrice, uint8 priceDecimals) = IPriceFeeder(_oraclesZIPOnStablecoin[stablecoin]).getPrice();
         if(priceDecimals + 18 > PRICE_CONFIG_DECIMALS) {
@@ -66,18 +70,48 @@ contract Factory is IFactory, Ownable, Operator {
         return amountStablecoin / tokenPrice;
     }
 
+    /**
+     * @dev Set operators role
+     */
     function setOperator(address operator, bool isActive) external override onlyOwner {
         _setOperator(operator, isActive);
     }
 
     /**
+     * @dev Set price oracle
+     */
+    function setOracle(address stablecoin, address priceFeeder) external onlyOwner {
+        _oraclesZIPOnStablecoin[stablecoin] = priceFeeder;
+    }
+
+    /**
+     * @dev Set vault manager
+     */
+    function setVaultManager(address vaultManager) external onlyOwner {
+        _vaultManager = vaultManager;
+    }
+
+    /**
+     * @dev Set inflation rate feeder
+     */
+    function setInflationRateFeeder(address inflationRateFeeder) external onlyOwner {
+        _inflationRateFeeder = inflationRateFeeder;
+    }
+
+    /**
      * @dev Accumulate inflation
      */
-    function accumulateInflation() external onlyOperator {
-        require(_mode == Mode.ANTI_INFLATION_MODE, "Only anti inflation mode");
+    function accumulateInflation() public {
+        if (_mode != Mode.ANTI_INFLATION_MODE) {
+            return;
+        }
+        if (block.timestamp == _lastAccumulateTimestamp) {
+            return;
+        }
 
-        // TODO: accumulate implement
-        (uint256 currentInflationRate, uint8 inflationRateDecimals) = IInflationFeeder(_inflationRateFeeder).getCurrentInflationRate();
+        // The art of mathematic
+        (uint256 inflationRate, uint8 inflationRateDecimals) = IInflationFeeder(_inflationRateFeeder).getCurrentInflationRate();
+        _accumulateInflationRate = _accumulateInflationRate * (1e18 + inflationRate * 1e18 * (block.timestamp - _lastAccumulateTimestamp) / (ONE_YEAR_TIMESTAMP * inflationRateDecimals));
         _lastAccumulateTimestamp = block.timestamp;
     }
 
@@ -109,6 +143,7 @@ contract Factory is IFactory, Ownable, Operator {
         if (_mode == Mode.DEPOSIT_MODE) {
             zipAmount = 0;
         } else if (_mode == Mode.ANTI_INFLATION_MODE) {
+            accumulateInflation();
             zipAmount = _convertStablecoinToZIP(stablecoin, (uint256(_accumulateInflationRate) - 1e18) * stablecoinAmount / 1e18);
         } else {
             revert();
@@ -166,14 +201,37 @@ contract Factory is IFactory, Ownable, Operator {
     }
 
     /**
-     * @dev Get current redeem rate
-     */
-    function getRedeemRate() external view returns (uint256) {}
-
-    /**
      * @dev Get current accumulate inflation rate
      */
-    function getAccumulateInflationRate() external view returns (int256) {
+    function getAccumulateInflationRate() external view returns (uint256) {
         return _accumulateInflationRate;
+    }
+
+    /**
+     * @dev Get vault manager address
+     */
+    function getVaultManagerAddress() external view returns (address) {
+        return _vaultManager;
+    }
+
+    /**
+     * @dev Check an token is whitelist stablecoin
+     */
+    function isBackedStablecoin(address stablecoin) external view returns (bool) {
+        return _backedStablecoin[stablecoin];
+    }
+
+    /**
+     * @dev Get oracle address
+     */
+    function oracleAddress(address stablecoin) external view returns (address) {
+        return _oraclesZIPOnStablecoin[stablecoin];
+    }
+
+    /**
+     * @dev Inflation feeder
+     */
+    function oracleAddress() external view returns (address) {
+        return _inflationRateFeeder;
     }
 }
