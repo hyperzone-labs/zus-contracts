@@ -58,15 +58,15 @@ contract Factory is IFactory, Ownable, Operator {
     /**
      * @dev Convert fiat to ZIP
      */
-    function _convertStablecoinToZIP(address stablecoin, uint256 amountStablecoin) internal view returns(uint256) {
+    function _convertStablecoinToZIP(address stablecoin, uint256 amountStablecoin) internal view returns (uint256) {
         (uint256 tokenPrice, uint8 priceDecimals) = IPriceFeeder(_oraclesZIPOnStablecoin[stablecoin]).getPrice();
-        if(priceDecimals + 18 > PRICE_CONFIG_DECIMALS) {
+        if (priceDecimals + 18 > PRICE_CONFIG_DECIMALS) {
             uint8 decs = priceDecimals + 18 - PRICE_CONFIG_DECIMALS;
-            return amountStablecoin * 10**decs / tokenPrice;
+            return amountStablecoin * 10 ** decs / tokenPrice;
         }
-        if(priceDecimals + 18 < PRICE_CONFIG_DECIMALS) {
+        if (priceDecimals + 18 < PRICE_CONFIG_DECIMALS) {
             uint8 decs = PRICE_CONFIG_DECIMALS - priceDecimals - 18;
-            return amountStablecoin / 10**decs / tokenPrice;
+            return amountStablecoin / 10 ** decs / tokenPrice;
         }
         return amountStablecoin / tokenPrice;
     }
@@ -111,8 +111,14 @@ contract Factory is IFactory, Ownable, Operator {
         }
 
         // The art of mathematic
-        (uint256 inflationRate, uint8 inflationRateDecimals) = IInflationFeeder(_inflationRateFeeder).getCurrentInflationRate();
-        _accumulateInflationRate = _accumulateInflationRate * (1e18 + inflationRate * 1e18 * (block.timestamp - _lastAccumulateTimestamp) / (ONE_YEAR_TIMESTAMP * (10**inflationRateDecimals)));
+        (uint256 inflationRate, uint8 inflationRateDecimals) =
+            IInflationFeeder(_inflationRateFeeder).getCurrentInflationRate();
+        _accumulateInflationRate = _accumulateInflationRate
+            * (
+                1e18
+                    + inflationRate * 1e18 * (block.timestamp - _lastAccumulateTimestamp)
+                        / (ONE_YEAR_TIMESTAMP * (10 ** inflationRateDecimals))
+            );
         _lastAccumulateTimestamp = block.timestamp;
     }
 
@@ -145,7 +151,9 @@ contract Factory is IFactory, Ownable, Operator {
         if (_mode == Mode.DEPOSIT_MODE) {
             zipAmount = 0;
         } else if (_mode == Mode.ANTI_INFLATION_MODE) {
-            zipAmount = _convertStablecoinToZIP(stablecoin, (uint256(_accumulateInflationRate) - 1e18) * stablecoinAmount / 1e18);
+            zipAmount = _convertStablecoinToZIP(
+                stablecoin, (uint256(_accumulateInflationRate) - 1e18) * stablecoinAmount / 1e18
+            );
         } else {
             revert();
         }
@@ -179,7 +187,9 @@ contract Factory is IFactory, Ownable, Operator {
         if (_mode == Mode.DEPOSIT_MODE) {
             zipAmount = 0;
         } else {
-            zipAmount = _convertStablecoinToZIP(stablecoin, (uint256(_accumulateInflationRate) - 1e18) * stablecoinAmount / 1e18);
+            zipAmount = _convertStablecoinToZIP(
+                stablecoin, (uint256(_accumulateInflationRate) - 1e18) * stablecoinAmount / 1e18
+            );
         }
 
         if (zipAmount > 0) {

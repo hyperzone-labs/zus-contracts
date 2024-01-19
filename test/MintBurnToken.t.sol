@@ -29,7 +29,6 @@ contract MintBurnTokenTest is Test {
         vm.stopPrank();
     }
 
-
     function testSetFactory() public {
         vm.prank(owner);
         token.setFactoryStatus(factory, true);

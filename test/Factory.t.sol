@@ -16,7 +16,7 @@ contract FactorTest is Test {
 
     MintBurnToken zusToken;
     MintBurnToken zipToken;
-    
+
     Factory factory;
     InflationFeeder inflationFeeder;
     PriceFeeder priceFeeder;
@@ -57,7 +57,9 @@ contract FactorTest is Test {
         stablecoin.transfer(address(factory), amountStablecoin);
         factory.mint(address(stablecoin), amountStablecoin, user, bytes(""));
 
-        assertEq(stablecoin.balanceOf(address(vaultManager)), amountStablecoin, "Wrong vault manager balance is Stablecoin");
+        assertEq(
+            stablecoin.balanceOf(address(vaultManager)), amountStablecoin, "Wrong vault manager balance is Stablecoin"
+        );
         assertEq(zusToken.totalSupply(), amountStablecoin, "Wrong total supply in ZUS");
         assertEq(zusToken.balanceOf(address(user)), zusAmount, "Wrong user balance in ZUS");
 

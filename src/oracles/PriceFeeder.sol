@@ -13,7 +13,7 @@ contract PriceFeeder is IPriceFeeder, Ownable, Operator {
         _decimals = 8;
     }
 
-    function feedData(uint256 price) external onlyOperator() {
+    function feedData(uint256 price) external onlyOperator {
         _price = price;
     }
 
@@ -21,7 +21,7 @@ contract PriceFeeder is IPriceFeeder, Ownable, Operator {
         return (_price, _decimals);
     }
 
-    function setOperator(address operator, bool isActive) external override onlyOwner() {
+    function setOperator(address operator, bool isActive) external override onlyOwner {
         _setOperator(operator, isActive);
     }
 }
