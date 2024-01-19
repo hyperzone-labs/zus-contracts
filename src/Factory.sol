@@ -3,6 +3,7 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IFactory.sol";
 import "./interfaces/IFactoryCallback.sol";
@@ -20,6 +21,7 @@ import "./libraries/Operators.sol";
  */
 contract Factory is IFactory, Ownable, Operator {
     using SafeERC20 for IMintBurnERC20;
+    using SafeERC20 for IERC20;
 
     IMintBurnERC20 public immutable ZIP_TOKEN;
     IMintBurnERC20 public immutable ZUS_TOKEN;
@@ -35,7 +37,6 @@ contract Factory is IFactory, Ownable, Operator {
     // We do some awesome math
     uint256 private _accumulateInflationRate; // 1e18 in decimals
 
-    mapping(address => bool) private _backedStablecoin;
     mapping(address => address) private _oraclesZIPOnStablecoin;
 
     constructor(address zipToken, address zusToken, address vaultManager, address inflationRateFeeder)
@@ -50,7 +51,7 @@ contract Factory is IFactory, Ownable, Operator {
     }
 
     modifier validBackedStablecoin(address stablecoin) {
-        require(_backedStablecoin[stablecoin], "Invalid stablecoin");
+        require(_oraclesZIPOnStablecoin[stablecoin] != address(0), "Invalid stablecoin");
         _;
     }
 
@@ -111,7 +112,7 @@ contract Factory is IFactory, Ownable, Operator {
 
         // The art of mathematic
         (uint256 inflationRate, uint8 inflationRateDecimals) = IInflationFeeder(_inflationRateFeeder).getCurrentInflationRate();
-        _accumulateInflationRate = _accumulateInflationRate * (1e18 + inflationRate * 1e18 * (block.timestamp - _lastAccumulateTimestamp) / (ONE_YEAR_TIMESTAMP * inflationRateDecimals));
+        _accumulateInflationRate = _accumulateInflationRate * (1e18 + inflationRate * 1e18 * (block.timestamp - _lastAccumulateTimestamp) / (ONE_YEAR_TIMESTAMP * (10**inflationRateDecimals)));
         _lastAccumulateTimestamp = block.timestamp;
     }
 
@@ -133,17 +134,17 @@ contract Factory is IFactory, Ownable, Operator {
         validBackedStablecoin(stablecoin)
         returns (uint256 zipAmount, uint256 zusAmount)
     {
+        accumulateInflation();
         zusAmount = stablecoinAmount;
 
         // take stablecoin from sender
-        ZIP_TOKEN.safeTransfer(_vaultManager, stablecoinAmount);
+        IERC20(stablecoin).safeTransfer(_vaultManager, stablecoinAmount);
         // call to vault manager
         IVaultManager(_vaultManager).receiveMoney(stablecoin, stablecoinAmount);
 
         if (_mode == Mode.DEPOSIT_MODE) {
             zipAmount = 0;
         } else if (_mode == Mode.ANTI_INFLATION_MODE) {
-            accumulateInflation();
             zipAmount = _convertStablecoinToZIP(stablecoin, (uint256(_accumulateInflationRate) - 1e18) * stablecoinAmount / 1e18);
         } else {
             revert();
@@ -165,11 +166,12 @@ contract Factory is IFactory, Ownable, Operator {
     /**
      * @dev Redeem ZUS token
      */
-    function redeem(address stablecoin, address receiver, uint256 zusAmount, bytes memory data)
+    function redeem(address stablecoin, uint256 zusAmount, address receiver, bytes memory data)
         external
         validBackedStablecoin(stablecoin)
         returns (uint256 zipAmount, uint256 stablecoinAmount)
     {
+        accumulateInflation();
         stablecoinAmount = zusAmount;
         // call to vault manager
         IVaultManager(_vaultManager).withdrawMoney(stablecoin, receiver, stablecoinAmount);
@@ -212,13 +214,6 @@ contract Factory is IFactory, Ownable, Operator {
      */
     function getVaultManagerAddress() external view returns (address) {
         return _vaultManager;
-    }
-
-    /**
-     * @dev Check an token is whitelist stablecoin
-     */
-    function isBackedStablecoin(address stablecoin) external view returns (bool) {
-        return _backedStablecoin[stablecoin];
     }
 
     /**
